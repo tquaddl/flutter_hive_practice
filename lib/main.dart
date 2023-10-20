@@ -42,6 +42,12 @@ class _HomePageState extends State<HomePage> {
 
   final _itemBox = Hive.box('item_Box');
 
+  @override
+  void initState() {
+    super.initState();
+    _refreshItems();
+  }
+
   void _refreshItems() {
     final data = _itemBox.keys.map(
       (key) {
@@ -59,7 +65,28 @@ class _HomePageState extends State<HomePage> {
     _refreshItems();
   }
 
+  Future<void> _updateItem(int itemKey, Map<String, dynamic> item) async {
+    await _itemBox.put(itemKey, item);
+    _refreshItems();
+  }
+
+  Future<void> _deleteItem(int itemKey) async {
+    await _itemBox.delete(itemKey);
+    _refreshItems();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('An item has been deleted'),
+      ),
+    );
+  }
+
   void _showForm(BuildContext ctx, int? itemKey) async {
+    // final existingItem =
+    //     _items.firstWhere((element) => element['key'] == itemKey);
+    // _nameController.text = existingItem['name'];
+    // _quantityController.text = existingItem['quantity'];
+
     showModalBottomSheet(
       context: ctx,
       elevation: 5,
@@ -92,15 +119,25 @@ class _HomePageState extends State<HomePage> {
             ),
             ElevatedButton(
               onPressed: () async {
-                _createItem({
-                  'name': _nameController.text,
-                  'quantity': _quantityController.text
-                });
+                if (itemKey == null) {
+                  _createItem({
+                    'name': _nameController.text,
+                    'quantity': _quantityController.text
+                  });
+                }
+
+                if (itemKey != null) {
+                  _updateItem(itemKey, {
+                    'name': _nameController.text.trim(),
+                    'quantity': _quantityController.text.trim()
+                  });
+                }
+
                 _nameController.text = '';
                 _quantityController.text = '';
                 Navigator.of(context).pop();
               },
-              child: Text('Create New'),
+              child: Text(itemKey == null ? 'Create New' : 'Update'),
             ),
             const SizedBox(
               height: 15,
@@ -128,6 +165,19 @@ class _HomePageState extends State<HomePage> {
             child: ListTile(
               title: Text(currentItem['name']),
               subtitle: Text(currentItem['quantity'].toString()),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () => _showForm(context, currentItem['key']),
+                    icon: const Icon(Icons.edit),
+                  ),
+                  IconButton(
+                    onPressed: () => _deleteItem(currentItem['key']),
+                    icon: const Icon(Icons.delete),
+                  ),
+                ],
+              ),
             ),
           );
         },
