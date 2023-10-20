@@ -5,7 +5,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
-  await Hive.openBox('box');
+  await Hive.openBox('item_Box');
 
   runApp(const MyApp());
 }
@@ -37,6 +37,27 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
+
+  List<Map<String, dynamic>> _items = [];
+
+  final _itemBox = Hive.box('item_Box');
+
+  void _refreshItems() {
+    final data = _itemBox.keys.map(
+      (key) {
+        final item = _itemBox.get(key);
+        return {'key': key, 'name': item['name'], 'quantity': item['quantity']};
+      },
+    ).toList();
+    setState(() {
+      _items = data.reversed.toList();
+    });
+  }
+
+  Future<void> _createItem(Map<String, dynamic> newItem) async {
+    await _itemBox.add(newItem);
+    _refreshItems();
+  }
 
   void _showForm(BuildContext ctx, int? itemKey) async {
     showModalBottomSheet(
@@ -71,6 +92,10 @@ class _HomePageState extends State<HomePage> {
             ),
             ElevatedButton(
               onPressed: () async {
+                _createItem({
+                  'name': _nameController.text,
+                  'quantity': _quantityController.text
+                });
                 _nameController.text = '';
                 _quantityController.text = '';
                 Navigator.of(context).pop();
@@ -91,6 +116,21 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hive'),
+      ),
+      body: ListView.builder(
+        itemCount: _items.length,
+        itemBuilder: (_, index) {
+          final currentItem = _items[index];
+          return Card(
+            color: Colors.orange.shade100,
+            margin: const EdgeInsets.all(10),
+            elevation: 3,
+            child: ListTile(
+              title: Text(currentItem['name']),
+              subtitle: Text(currentItem['quantity'].toString()),
+            ),
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showForm(context, null),
